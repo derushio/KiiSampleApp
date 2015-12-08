@@ -25,16 +25,19 @@ public class KiiManager {
 
 	// コンストラクタを閉じる
 	private KiiManager() {
-		return;
+		throw new IllegalStateException("KiiManager(); is ban");
+	}
+
+	private KiiManager(Context context) {
+		Kii.initialize(context, APP_ID, APP_KEY, Kii.Site.JP);
+		this.context = context;
+		this.uiThreadHandler = new Handler(Looper.getMainLooper());
 	}
 
 	// シングルトンインスタンスを取得
 	public static KiiManager getInstance(Context context) {
 		if (instance == null) {
-			instance = new KiiManager();
-			Kii.initialize(context.getApplicationContext(), APP_ID, APP_KEY, Kii.Site.JP);
-			instance.context = context.getApplicationContext();
-			instance.uiThreadHandler = new Handler(Looper.getMainLooper());
+			instance = new KiiManager(context);
 		}
 
 		return instance;
