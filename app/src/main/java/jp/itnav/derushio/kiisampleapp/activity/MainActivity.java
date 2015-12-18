@@ -9,13 +9,19 @@ import android.os.Bundle;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
+import android.view.View;
+
+import com.kii.cloud.storage.Kii;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 
+import jp.itnav.derushio.kiimanager.KiiManager;
 import jp.itnav.derushio.kiisampleapp.R;
-import jp.itnav.derushio.kiisampleapp.utility.KiiManager;
 
 public class MainActivity extends AppCompatActivity {
+
+	public static final String bucketName = "bucket";
 
 	private KiiManager kiiManager;
 
@@ -30,9 +36,23 @@ public class MainActivity extends AppCompatActivity {
 			// パーミッションが認証済みなのでログインを開始
 			loginWithStoredCredentials();
 		}
+
+		kiiManager.getObjectData(bucketName, "test", new KiiManager.OnFinishActionListener() {
+					@Override
+					public void onSuccess(HashMap<String, String> data) {
+						Log.d("test data", data.get("value"));
+					}
+
+					@Override
+					public void onFail(Exception e) {
+
+					}
+				}
+
+		);
 	}
 
-	// 戻り値はリクエストを実行したか
+	// 戻り値:リクエストを実行したか
 	private boolean requestAppPermissions() {
 		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
 			return false;
@@ -84,10 +104,13 @@ public class MainActivity extends AppCompatActivity {
 	}
 
 	private void loginWithStoredCredentials() {
-		kiiManager = KiiManager.getInstance(this);
+		// Kii初期化
+		KiiManager.kiiInit(this, getString(R.string.kii_app_id), getString(R.string.kii_app_key), Kii.Site.JP);
+
+		kiiManager = KiiManager.getInstance();
 		kiiManager.loginWithStoredCredentials(new KiiManager.OnFinishActionListener() {
 			@Override
-			public void onSuccess() {
+			public void onSuccess(HashMap<String, String> data) {
 				Log.d("loginWithSC", "success");
 				// TODO データのやりとりのサンプル
 			}
@@ -96,6 +119,20 @@ public class MainActivity extends AppCompatActivity {
 			public void onFail(Exception e) {
 				Intent intent = new Intent(MainActivity.this, LoginActivity.class);
 				startActivity(intent);
+			}
+		});
+	}
+
+	public void onAddFABClick(View v) {
+		kiiManager.putObjectData(bucketName, "test", "test", new KiiManager.OnFinishActionListener() {
+			@Override
+			public void onSuccess(HashMap<String, String> data) {
+				Log.d("add object", "put success");
+			}
+
+			@Override
+			public void onFail(Exception e) {
+				Log.d("add object", "put fail");
 			}
 		});
 	}

@@ -6,8 +6,10 @@ import android.support.v7.app.AppCompatActivity;
 import android.view.View;
 import android.widget.EditText;
 
+import java.util.HashMap;
+
+import jp.itnav.derushio.kiimanager.KiiManager;
 import jp.itnav.derushio.kiisampleapp.R;
-import jp.itnav.derushio.kiisampleapp.utility.KiiManager;
 
 public class LoginActivity extends AppCompatActivity {
 
@@ -21,7 +23,7 @@ public class LoginActivity extends AppCompatActivity {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_login);
 
-		kiiManager = KiiManager.getInstance(this);
+		kiiManager = KiiManager.getInstance();
 
 		setupViews();
 	}
@@ -34,7 +36,7 @@ public class LoginActivity extends AppCompatActivity {
 	public void onLoginClick(View v) {
 		kiiManager.login(editUsername.getText().toString(), editPassword.getText().toString(), new KiiManager.OnFinishActionListener() {
 			@Override
-			public void onSuccess() {
+			public void onSuccess(HashMap<String, String> data) {
 				finish();
 			}
 
@@ -53,7 +55,7 @@ public class LoginActivity extends AppCompatActivity {
 	public void onSignupClick(View v) {
 		kiiManager.signup(editUsername.getText().toString(), editPassword.getText().toString(), new KiiManager.OnFinishActionListener() {
 			@Override
-			public void onSuccess() {
+			public void onSuccess(HashMap<String, String> data) {
 				showDialog(true);
 			}
 
