@@ -22,6 +22,11 @@ import java.util.List;
  * 通信はサブスレッドで実行され、ハンドラはUIスレッドで帰ってきます。
  */
 public class KiiManager {
+	// 受け渡しデータのKey
+	public static final String DATA_OBJECT_DATA = "objectData";
+	public static final String DATA_QUERY_DATA = "queryData";
+	public static final String DATA_OBJECT_URI = "_kiireserved_uri";
+
 	// シングルトンインスタンス
 	private static KiiManager instance;
 
@@ -48,11 +53,11 @@ public class KiiManager {
 	}
 
 	// Kii初期化アプリケーション開始時に必ず呼び出してください
-	public static void kiiInit(Context context, String appId, String appKey, Kii.Site serverSite) {
+	public void kiiInit(Context context, String appId, String appKey, Kii.Site serverSite) {
 		Kii.initialize(context, appId, appKey, serverSite);
 	}
 
-	public static void kiiInit(Context context, String appId, String appKey, String serverUrl) {
+	public void kiiInit(Context context, String appId, String appKey, String serverUrl) {
 		Kii.initialize(context, appId, appKey, serverUrl);
 	}
 
@@ -101,25 +106,20 @@ public class KiiManager {
 					returnOnUIThread(onFinishActionListener, true, null, null);
 				} catch (Exception e) {
 					// ログイン失敗
+					returnOnUIThread(onFinishActionListener, false, null, e);
 				}
 			}
 		}).start();
 	}
 
-	// バケットにデータをプットする
-	// data{"objectUri" : objectUri}
-	public void putObjectData(final String bucketName, final JSONObject objectData, final OnFinishActionListener onFinishActionListener) {
+	// ログアウト
+	public void logout(final OnFinishActionListener onFinishActionListener) {
 		new Thread(new Runnable() {
 			@Override
 			public void run() {
 				try {
-					KiiObject object = Kii.user().bucket(bucketName).object();
-					object.set("objectData", objectData);
-					object.save();
-
-					JSONObject data = new JSONObject();
-					data.put("objectUri", object.toUri().toString());
-					returnOnUIThread(onFinishActionListener, true, data, null);
+					KiiUser.logOut();
+					returnOnUIThread(onFinishActionListener, true, null, null);
 				} catch (Exception e) {
 					returnOnUIThread(onFinishActionListener, false, null, e);
 				}
@@ -128,7 +128,7 @@ public class KiiManager {
 	}
 
 	// オブジェクトデータをゲットする
-	// data{"objectData" : objectData}
+	// data{DATA_OBJECT_DATA : objectData}
 	public void getObjectData(final Uri objectUri, final OnFinishActionListener onFinishActionListener) {
 		new Thread(new Runnable() {
 			@Override
@@ -146,7 +146,7 @@ public class KiiManager {
 	}
 
 	// バケット内のすべてのデータをゲットする
-	// data{objectUri :{ "queryData" : [objectData1, objectData2, ...]}}
+	// data{objectUri :{ DATA_QUERY_DATA : [objectData1, objectData2, ...]}}
 	public void allQueryObjectData(final String bucketName, final OnFinishActionListener onFinishActionListener) {
 		new Thread(new Runnable() {
 			@Override
@@ -162,8 +162,29 @@ public class KiiManager {
 					}
 
 					JSONObject data = new JSONObject();
-					data.put("queryData", queryData);
+					data.put(DATA_QUERY_DATA, queryData);
 
+					returnOnUIThread(onFinishActionListener, true, data, null);
+				} catch (Exception e) {
+					returnOnUIThread(onFinishActionListener, false, null, e);
+				}
+			}
+		}).start();
+	}
+
+	// バケットにデータをプットする
+	// data{DATA_OBJECT_URI : objectUri}
+	public void putObjectData(final String bucketName, final JSONObject objectData, final OnFinishActionListener onFinishActionListener) {
+		new Thread(new Runnable() {
+			@Override
+			public void run() {
+				try {
+					KiiObject object = Kii.user().bucket(bucketName).object();
+					object.set(DATA_OBJECT_DATA, objectData);
+					object.save();
+
+					JSONObject data = new JSONObject();
+					data.put(DATA_OBJECT_URI, object.toUri().toString());
 					returnOnUIThread(onFinishActionListener, true, data, null);
 				} catch (Exception e) {
 					returnOnUIThread(onFinishActionListener, false, null, e);

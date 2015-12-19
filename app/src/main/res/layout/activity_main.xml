@@ -15,7 +15,7 @@
 		android:paddingTop="@dimen/activity_vertical_margin">
 
 		<android.support.v7.widget.RecyclerView
-			android:id="@+id/recyclerMemo"
+			android:id="@+id/memoRecycler"
 			android:layout_width="match_parent"
 			android:layout_height="match_parent"/>
 

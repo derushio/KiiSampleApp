@@ -15,8 +15,8 @@ public class LoginActivity extends AppCompatActivity {
 
 	private KiiManager kiiManager;
 
-	private EditText editUsername;
-	private EditText editPassword;
+	private EditText usernameEdit;
+	private EditText passwordEdit;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -28,15 +28,23 @@ public class LoginActivity extends AppCompatActivity {
 		setupViews();
 	}
 
-	private void setupViews() {
-		editUsername = (EditText) findViewById(R.id.editUsername);
-		editPassword = (EditText) findViewById(R.id.editPassword);
+	@Override
+	public void onBackPressed() {
+		setResult(RESULT_CANCELED);
+		finish();
 	}
 
+	private void setupViews() {
+		usernameEdit = (EditText) findViewById(R.id.usernameEdit);
+		passwordEdit = (EditText) findViewById(R.id.passwordEdit);
+	}
+
+	// ******************** Kii Cloud Control Start ********************
 	public void onLoginClick(View v) {
-		kiiManager.login(editUsername.getText().toString(), editPassword.getText().toString(), new KiiManager.OnFinishActionListener() {
+		kiiManager.login(usernameEdit.getText().toString(), passwordEdit.getText().toString(), new KiiManager.OnFinishActionListener() {
 			@Override
 			public void onSuccess(JSONObject data) {
+				setResult(RESULT_OK);
 				finish();
 			}
 
@@ -53,7 +61,7 @@ public class LoginActivity extends AppCompatActivity {
 	}
 
 	public void onSignupClick(View v) {
-		kiiManager.signup(editUsername.getText().toString(), editPassword.getText().toString(), new KiiManager.OnFinishActionListener() {
+		kiiManager.signup(usernameEdit.getText().toString(), passwordEdit.getText().toString(), new KiiManager.OnFinishActionListener() {
 			@Override
 			public void onSuccess(JSONObject data) {
 				showDialog(true);
@@ -66,8 +74,8 @@ public class LoginActivity extends AppCompatActivity {
 
 			private void showDialog(boolean success) {
 				AlertDialog.Builder builder = new AlertDialog.Builder(LoginActivity.this);
-				builder.setPositiveButton("OK", null);
 				builder.setCancelable(false);
+				builder.setPositiveButton("OK", null);
 				if (success) {
 					builder.setTitle("サインアップ成功");
 					builder.setMessage("サインアップに成功しました");
@@ -80,4 +88,5 @@ public class LoginActivity extends AppCompatActivity {
 			}
 		});
 	}
+	// ******************** Kii Cloud Control End **********************
 }

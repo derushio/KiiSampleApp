@@ -1,35 +1,49 @@
 package jp.itnav.derushio.kiisampleapp.activity;
 
 import android.Manifest;
-import android.app.Activity;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
+import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.RecyclerView;
 import android.util.Log;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 
 import com.kii.cloud.storage.Kii;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 
 import jp.itnav.derushio.kiimanager.KiiManager;
 import jp.itnav.derushio.kiisampleapp.R;
+import jp.itnav.derushio.kiisampleapp.adapter.MemoRecyclerAdapter;
 
 public class MainActivity extends AppCompatActivity {
 
+	// ActivityForResult REQUEST_CODE
 	public static final int REQUEST_CODE_LOGIN = 0;
 
-	public static final String bucketName = "bucket";
+	// アクセス先バケット名
+	public static final String BUCKET_NAME = "bucket";
+
+	// オブジェクトのキー
+	public static final String OBJECT_KEY_MEMO = "objectKeyMemo";
 
 	private KiiManager kiiManager;
+
+	private RecyclerView memoRecycler;
+	private MemoRecyclerAdapter memoRecyclerAdapter;
+	private ArrayList<String> memoDataSet;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -42,6 +56,8 @@ public class MainActivity extends AppCompatActivity {
 			// パーミッションが認証済みなのでログインを開始
 			loginWithStoredCredentials();
 		}
+
+		setupViews();
 	}
 
 	@Override
@@ -50,19 +66,105 @@ public class MainActivity extends AppCompatActivity {
 
 		switch (requestCode) {
 			case (REQUEST_CODE_LOGIN): {
-				if (resultCode != Activity.RESULT_OK) {
+				if (resultCode != RESULT_OK) {
 					return;
 				}
 
 				getBucketData();
 				break;
 			}
-			default: {
-				break;
-			}
 		}
 	}
 
+	@Override
+	public boolean onCreateOptionsMenu(Menu menu) {
+		getMenuInflater().inflate(R.menu.activity_main, menu);
+		return super.onCreateOptionsMenu(menu);
+	}
+
+	@Override
+	public boolean onOptionsItemSelected(MenuItem item) {
+		switch (item.getItemId()) {
+			case (R.id.loginMenu): {
+				if (kiiManager.isLoggedIn()) {
+					AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+					builder.setCancelable(false);
+					builder.setMessage("既にログインしています");
+					builder.setPositiveButton("OK", null);
+					builder.show();
+					break;
+				}
+				Intent intent = new Intent(this, LoginActivity.class);
+				startActivityForResult(intent, REQUEST_CODE_LOGIN);
+				break;
+			}
+			case (R.id.logoutMenu): {
+				AlertDialog.Builder builder = new AlertDialog.Builder(this);
+				builder.setTitle("確認");
+				builder.setCancelable(false);
+				builder.setMessage("ログアウトしますか？");
+				builder.setPositiveButton("はい", new DialogInterface.OnClickListener() {
+					@Override
+					public void onClick(DialogInterface dialog, int which) {
+						kiiManager.logout(new KiiManager.OnFinishActionListener() {
+							@Override
+							public void onSuccess(JSONObject data) {
+								AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+								builder.setCancelable(false);
+								builder.setMessage("ログアウトしました");
+								builder.setPositiveButton("OK", null);
+								builder.show();
+							}
+
+							@Override
+							public void onFail(Exception e) {
+
+							}
+						});
+					}
+				});
+				builder.setNegativeButton("いいえ", null);
+				builder.show();
+				break;
+			}
+			case (R.id.allDeleteMenu): {
+				AlertDialog.Builder builder = new AlertDialog.Builder(this);
+				builder.setTitle("確認");
+				builder.setCancelable(false);
+				builder.setMessage("全件削除しますか？");
+				builder.setPositiveButton("はい", new DialogInterface.OnClickListener() {
+					@Override
+					public void onClick(DialogInterface dialog, int which) {
+						allObjectDelete();
+					}
+				});
+				builder.setNegativeButton("いいえ", null);
+				builder.show();
+				break;
+			}
+		}
+
+		return super.
+
+				onOptionsItemSelected(item);
+
+	}
+
+	public void setupViews() {
+		getSupportActionBar().setTitle("メモ一覧");
+
+		memoRecycler = (RecyclerView) findViewById(R.id.memoRecycler);
+
+		LinearLayoutManager linearLayoutManager = new LinearLayoutManager(this);
+		linearLayoutManager.setOrientation(LinearLayoutManager.VERTICAL);
+
+		memoRecycler.setLayoutManager(linearLayoutManager);
+		memoDataSet = new ArrayList<>();
+		memoRecyclerAdapter = new MemoRecyclerAdapter(memoDataSet);
+		memoRecycler.setAdapter(memoRecyclerAdapter);
+	}
+
+	// ******************** Android M later permission request Start ********************
 	// 戻り値:リクエストを実行したか
 	private boolean requestAppPermissions() {
 		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
@@ -113,12 +215,12 @@ public class MainActivity extends AppCompatActivity {
 		loginWithStoredCredentials();
 		super.onRequestPermissionsResult(requestCode, permissions, grantResults);
 	}
+	// ******************** Android M later permission request End **********************
 
+	// ******************** Kii Cloud Control Start ********************
 	private void loginWithStoredCredentials() {
-		// Kii初期化
-		KiiManager.kiiInit(this, getString(R.string.kii_app_id), getString(R.string.kii_app_key), Kii.Site.JP);
-
 		kiiManager = KiiManager.getInstance();
+		kiiManager.kiiInit(this, getString(R.string.kii_app_id), getString(R.string.kii_app_key), Kii.Site.JP);
 		kiiManager.loginWithStoredCredentials(new KiiManager.OnFinishActionListener() {
 			@Override
 			public void onSuccess(JSONObject data) {
@@ -137,18 +239,24 @@ public class MainActivity extends AppCompatActivity {
 
 	// Kiiからバケットデータを取ってくる
 	public void getBucketData() {
-		kiiManager.allQueryObjectData(bucketName, new KiiManager.OnFinishActionListener() {
+		kiiManager.allQueryObjectData(BUCKET_NAME, new KiiManager.OnFinishActionListener() {
 					@Override
 					public void onSuccess(JSONObject data) {
-						Log.d("allQuery", "success -> " + data.toString());
-						Iterator<String> keys = data.keys();
-						while (keys.hasNext()) {
-							String key = keys.next();
-							try {
-								Log.d("object", key + ": " + data.getJSONObject(key).toString());
-							} catch (JSONException e) {
-								continue;
+						try {
+							JSONArray memoDataArray = data.getJSONArray(KiiManager.DATA_QUERY_DATA);
+							memoDataSet.clear();
+							for (int i = 0; i < memoDataArray.length(); i++) {
+								JSONObject object = memoDataArray.getJSONObject(i).getJSONObject(KiiManager.DATA_OBJECT_DATA);
+								if (!object.has(OBJECT_KEY_MEMO)) {
+									continue;
+								}
+
+								memoDataSet.add(object.getString(OBJECT_KEY_MEMO));
 							}
+
+							memoRecyclerAdapter.notifyDataSetChanged();
+						} catch (JSONException e) {
+							e.printStackTrace();
 						}
 					}
 
@@ -160,12 +268,58 @@ public class MainActivity extends AppCompatActivity {
 		);
 	}
 
+	public void allObjectDelete() {
+		kiiManager.allQueryObjectData(BUCKET_NAME, new KiiManager.OnFinishActionListener() {
+			@Override
+			public void onSuccess(JSONObject data) {
+				try {
+					JSONArray memoDataArray = null;
+					memoDataArray = data.getJSONArray(KiiManager.DATA_QUERY_DATA);
+					memoDataSet.clear();
+					for (int i = 0; i < memoDataArray.length(); i++) {
+						JSONObject object = memoDataArray.getJSONObject(i);
+
+						Log.d("object ->", object.toString());
+
+						if (i != (memoDataArray.length() - 1)) {
+							kiiManager.deleteObjectData(Uri.parse(object.getString(KiiManager.DATA_OBJECT_URI)), null);
+						} else {
+							kiiManager.deleteObjectData(Uri.parse(object.getString(KiiManager.DATA_OBJECT_URI)), new KiiManager.OnFinishActionListener() {
+								@Override
+								public void onSuccess(JSONObject data) {
+									getBucketData();
+								}
+
+								@Override
+								public void onFail(Exception e) {
+									getBucketData();
+								}
+							});
+						}
+					}
+				} catch (JSONException e) {
+					e.printStackTrace();
+				}
+			}
+
+			@Override
+			public void onFail(Exception e) {
+
+			}
+		});
+	}
+	// ******************** Kii Cloud Control End **********************
+
 	public void onAddFABClick(View v) {
 		try {
-			kiiManager.putObjectData(bucketName, new JSONObject("{\"test\":\"narumi\"}"), new KiiManager.OnFinishActionListener() {
+			JSONObject object = new JSONObject();
+			object.put(OBJECT_KEY_MEMO, "memo");
+
+			kiiManager.putObjectData(BUCKET_NAME, object, new KiiManager.OnFinishActionListener() {
 				@Override
 				public void onSuccess(JSONObject data) {
 					Log.d("add object", "put success");
+					getBucketData();
 				}
 
 				@Override
@@ -177,5 +331,4 @@ public class MainActivity extends AppCompatActivity {
 			e.printStackTrace();
 		}
 	}
-
 }
