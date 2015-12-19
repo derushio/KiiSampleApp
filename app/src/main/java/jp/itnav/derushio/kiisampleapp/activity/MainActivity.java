@@ -1,6 +1,7 @@
 package jp.itnav.derushio.kiisampleapp.activity;
 
 import android.Manifest;
+import android.app.Activity;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -13,13 +14,18 @@ import android.view.View;
 
 import com.kii.cloud.storage.Kii;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Iterator;
 
 import jp.itnav.derushio.kiimanager.KiiManager;
 import jp.itnav.derushio.kiisampleapp.R;
 
 public class MainActivity extends AppCompatActivity {
+
+	public static final int REQUEST_CODE_LOGIN = 0;
 
 	public static final String bucketName = "bucket";
 
@@ -36,20 +42,25 @@ public class MainActivity extends AppCompatActivity {
 			// パーミッションが認証済みなのでログインを開始
 			loginWithStoredCredentials();
 		}
+	}
 
-		kiiManager.getObjectData(bucketName, "test", new KiiManager.OnFinishActionListener() {
-					@Override
-					public void onSuccess(HashMap<String, String> data) {
-						Log.d("test data", data.get("value"));
-					}
+	@Override
+	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+		super.onActivityResult(requestCode, resultCode, data);
 
-					@Override
-					public void onFail(Exception e) {
-
-					}
+		switch (requestCode) {
+			case (REQUEST_CODE_LOGIN): {
+				if (resultCode != Activity.RESULT_OK) {
+					return;
 				}
 
-		);
+				getBucketData();
+				break;
+			}
+			default: {
+				break;
+			}
+		}
 	}
 
 	// 戻り値:リクエストを実行したか
@@ -110,31 +121,61 @@ public class MainActivity extends AppCompatActivity {
 		kiiManager = KiiManager.getInstance();
 		kiiManager.loginWithStoredCredentials(new KiiManager.OnFinishActionListener() {
 			@Override
-			public void onSuccess(HashMap<String, String> data) {
+			public void onSuccess(JSONObject data) {
 				Log.d("loginWithSC", "success");
 				// TODO データのやりとりのサンプル
+				getBucketData();
 			}
 
 			@Override
 			public void onFail(Exception e) {
 				Intent intent = new Intent(MainActivity.this, LoginActivity.class);
-				startActivity(intent);
+				startActivityForResult(intent, REQUEST_CODE_LOGIN);
 			}
 		});
 	}
 
-	public void onAddFABClick(View v) {
-		kiiManager.putObjectData(bucketName, "test", "test", new KiiManager.OnFinishActionListener() {
-			@Override
-			public void onSuccess(HashMap<String, String> data) {
-				Log.d("add object", "put success");
-			}
+	// Kiiからバケットデータを取ってくる
+	public void getBucketData() {
+		kiiManager.allQueryObjectData(bucketName, new KiiManager.OnFinishActionListener() {
+					@Override
+					public void onSuccess(JSONObject data) {
+						Log.d("allQuery", "success -> " + data.toString());
+						Iterator<String> keys = data.keys();
+						while (keys.hasNext()) {
+							String key = keys.next();
+							try {
+								Log.d("object", key + ": " + data.getJSONObject(key).toString());
+							} catch (JSONException e) {
+								continue;
+							}
+						}
+					}
 
-			@Override
-			public void onFail(Exception e) {
-				Log.d("add object", "put fail");
-			}
-		});
+					@Override
+					public void onFail(Exception e) {
+						e.printStackTrace();
+					}
+				}
+		);
+	}
+
+	public void onAddFABClick(View v) {
+		try {
+			kiiManager.putObjectData(bucketName, new JSONObject("{\"test\":\"narumi\"}"), new KiiManager.OnFinishActionListener() {
+				@Override
+				public void onSuccess(JSONObject data) {
+					Log.d("add object", "put success");
+				}
+
+				@Override
+				public void onFail(Exception e) {
+					Log.d("add object", "put fail -> " + e.getMessage());
+				}
+			});
+		} catch (JSONException e) {
+			e.printStackTrace();
+		}
 	}
 
 }

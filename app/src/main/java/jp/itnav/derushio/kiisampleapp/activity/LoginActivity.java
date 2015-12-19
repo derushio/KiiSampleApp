@@ -6,7 +6,7 @@ import android.support.v7.app.AppCompatActivity;
 import android.view.View;
 import android.widget.EditText;
 
-import java.util.HashMap;
+import org.json.JSONObject;
 
 import jp.itnav.derushio.kiimanager.KiiManager;
 import jp.itnav.derushio.kiisampleapp.R;
@@ -36,7 +36,7 @@ public class LoginActivity extends AppCompatActivity {
 	public void onLoginClick(View v) {
 		kiiManager.login(editUsername.getText().toString(), editPassword.getText().toString(), new KiiManager.OnFinishActionListener() {
 			@Override
-			public void onSuccess(HashMap<String, String> data) {
+			public void onSuccess(JSONObject data) {
 				finish();
 			}
 
@@ -55,7 +55,7 @@ public class LoginActivity extends AppCompatActivity {
 	public void onSignupClick(View v) {
 		kiiManager.signup(editUsername.getText().toString(), editPassword.getText().toString(), new KiiManager.OnFinishActionListener() {
 			@Override
-			public void onSuccess(HashMap<String, String> data) {
+			public void onSuccess(JSONObject data) {
 				showDialog(true);
 			}
 

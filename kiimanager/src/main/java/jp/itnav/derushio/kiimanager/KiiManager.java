@@ -1,14 +1,20 @@
 package jp.itnav.derushio.kiimanager;
 
 import android.content.Context;
+import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
 
 import com.kii.cloud.storage.Kii;
 import com.kii.cloud.storage.KiiObject;
 import com.kii.cloud.storage.KiiUser;
+import com.kii.cloud.storage.query.KiiQuery;
+import com.kii.cloud.storage.query.KiiQueryResult;
 
-import java.util.HashMap;
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import java.util.List;
 
 /**
  * Created by derushio on 2015/12/08.
@@ -36,6 +42,11 @@ public class KiiManager {
 		return instance;
 	}
 
+	// ログイン済みか
+	public boolean isLoggedIn() {
+		return KiiUser.isLoggedIn();
+	}
+
 	// Kii初期化アプリケーション開始時に必ず呼び出してください
 	public static void kiiInit(Context context, String appId, String appKey, Kii.Site serverSite) {
 		Kii.initialize(context, appId, appKey, serverSite);
@@ -50,10 +61,10 @@ public class KiiManager {
 		new Thread(new Runnable() {
 			@Override
 			public void run() {
-				KiiUser.Builder builder = KiiUser.builderWithName(username);
-				KiiUser user = builder.build();
-
 				try {
+					KiiUser.Builder builder = KiiUser.builderWithName(username);
+					KiiUser user = builder.build();
+
 					user.register(password);
 					returnOnUIThread(onFinishActionListener, true, null, null);
 				} catch (Exception e) {
@@ -95,31 +106,81 @@ public class KiiManager {
 		}).start();
 	}
 
-	// バケットからデータをゲットする
-	public void getObjectData(final String bucketName, final String key, final OnFinishActionListener onFinishActionListener) {
+	// バケットにデータをプットする
+	// data{"objectUri" : objectUri}
+	public void putObjectData(final String bucketName, final JSONObject objectData, final OnFinishActionListener onFinishActionListener) {
 		new Thread(new Runnable() {
 			@Override
 			public void run() {
-				KiiObject object = Kii.user().bucket(bucketName).object();
-				String value = object.getString(key);
-				HashMap<String, String> data = new HashMap<>();
-				data.put("value", value);
+				try {
+					KiiObject object = Kii.user().bucket(bucketName).object();
+					object.set("objectData", objectData);
+					object.save();
 
-				returnOnUIThread(onFinishActionListener, true, data, null);
+					JSONObject data = new JSONObject();
+					data.put("objectUri", object.toUri().toString());
+					returnOnUIThread(onFinishActionListener, true, data, null);
+				} catch (Exception e) {
+					returnOnUIThread(onFinishActionListener, false, null, e);
+				}
 			}
 		}).start();
 	}
 
-	// バケットにデータをプットする
-	public void putObjectData(final String bucketName, final String key, final String value, final OnFinishActionListener onFinishActionListener) {
+	// オブジェクトデータをゲットする
+	// data{"objectData" : objectData}
+	public void getObjectData(final Uri objectUri, final OnFinishActionListener onFinishActionListener) {
 		new Thread(new Runnable() {
 			@Override
 			public void run() {
-				KiiObject object = Kii.user().bucket(bucketName).object();
-				object.set(key, value);
-
 				try {
-					object.save();
+					KiiObject object = KiiObject.createByUri(objectUri);
+					JSONObject data = object.toJSON();
+
+					returnOnUIThread(onFinishActionListener, true, data, null);
+				} catch (Exception e) {
+					returnOnUIThread(onFinishActionListener, false, null, e);
+				}
+			}
+		}).start();
+	}
+
+	// バケット内のすべてのデータをゲットする
+	// data{objectUri :{ "queryData" : [objectData1, objectData2, ...]}}
+	public void allQueryObjectData(final String bucketName, final OnFinishActionListener onFinishActionListener) {
+		new Thread(new Runnable() {
+			@Override
+			public void run() {
+				try {
+					KiiQuery allQuery = new KiiQuery();
+					KiiQueryResult<KiiObject> result = Kii.user().bucket(bucketName).query(allQuery);
+
+					JSONArray queryData = new JSONArray();
+					List<KiiObject> objectList = result.getResult();
+					for (KiiObject object : objectList) {
+						queryData.put(object.toJSON());
+					}
+
+					JSONObject data = new JSONObject();
+					data.put("queryData", queryData);
+
+					returnOnUIThread(onFinishActionListener, true, data, null);
+				} catch (Exception e) {
+					returnOnUIThread(onFinishActionListener, false, null, e);
+				}
+			}
+		}).start();
+	}
+
+	// オブジェクトを削除する
+	public void deleteObjectData(final Uri objectUri, final OnFinishActionListener onFinishActionListener) {
+		new Thread(new Runnable() {
+			@Override
+			public void run() {
+				try {
+					KiiObject object = KiiObject.createByUri(objectUri);
+					object.delete();
+
 					returnOnUIThread(onFinishActionListener, true, null, null);
 				} catch (Exception e) {
 					returnOnUIThread(onFinishActionListener, false, null, e);
@@ -129,7 +190,7 @@ public class KiiManager {
 	}
 
 	// UIThreadでリスナを呼ぶ（終了後にUI部分の変更を加えることがあるため）
-	private void returnOnUIThread(final OnFinishActionListener onFinishActionListener, final boolean success, final HashMap<String, String> data, final Exception e) {
+	private void returnOnUIThread(final OnFinishActionListener onFinishActionListener, final boolean success, final JSONObject data, final Exception e) {
 		if (onFinishActionListener == null) {
 			return;
 		}
@@ -149,7 +210,7 @@ public class KiiManager {
 	// KiiManagerのアクションが終了したら呼ばれるリスナ
 	public interface OnFinishActionListener {
 
-		void onSuccess(HashMap<String, String> data);
+		void onSuccess(JSONObject data);
 
 		void onFail(Exception e);
 	}
