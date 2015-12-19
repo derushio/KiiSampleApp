@@ -11,7 +11,6 @@ import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
-import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -224,8 +223,6 @@ public class MainActivity extends AppCompatActivity {
 		kiiManager.loginWithStoredCredentials(new KiiManager.OnFinishActionListener() {
 			@Override
 			public void onSuccess(JSONObject data) {
-				Log.d("loginWithSC", "success");
-				// TODO データのやりとりのサンプル
 				getBucketData();
 			}
 
@@ -268,6 +265,27 @@ public class MainActivity extends AppCompatActivity {
 		);
 	}
 
+	public void addObject(String key, String value) {
+
+		try {
+			JSONObject object = new JSONObject();
+			object.put(key, value);
+
+			kiiManager.putObjectData(BUCKET_NAME, object, new KiiManager.OnFinishActionListener() {
+				@Override
+				public void onSuccess(JSONObject data) {
+					getBucketData();
+				}
+
+				@Override
+				public void onFail(Exception e) {
+				}
+			});
+		} catch (JSONException e) {
+			e.printStackTrace();
+		}
+	}
+
 	public void allObjectDelete() {
 		kiiManager.allQueryObjectData(BUCKET_NAME, new KiiManager.OnFinishActionListener() {
 			@Override
@@ -278,8 +296,6 @@ public class MainActivity extends AppCompatActivity {
 					memoDataSet.clear();
 					for (int i = 0; i < memoDataArray.length(); i++) {
 						JSONObject object = memoDataArray.getJSONObject(i);
-
-						Log.d("object ->", object.toString());
 
 						if (i != (memoDataArray.length() - 1)) {
 							kiiManager.deleteObjectData(Uri.parse(object.getString(KiiManager.DATA_OBJECT_URI)), null);
@@ -311,24 +327,6 @@ public class MainActivity extends AppCompatActivity {
 	// ******************** Kii Cloud Control End **********************
 
 	public void onAddFABClick(View v) {
-		try {
-			JSONObject object = new JSONObject();
-			object.put(OBJECT_KEY_MEMO, "memo");
-
-			kiiManager.putObjectData(BUCKET_NAME, object, new KiiManager.OnFinishActionListener() {
-				@Override
-				public void onSuccess(JSONObject data) {
-					Log.d("add object", "put success");
-					getBucketData();
-				}
-
-				@Override
-				public void onFail(Exception e) {
-					Log.d("add object", "put fail -> " + e.getMessage());
-				}
-			});
-		} catch (JSONException e) {
-			e.printStackTrace();
-		}
+		addObject(OBJECT_KEY_MEMO, "memo");
 	}
 }
