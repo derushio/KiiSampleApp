@@ -253,18 +253,17 @@ public class MainActivity extends AppCompatActivity {
 
 							memoRecyclerAdapter.notifyDataSetChanged();
 						} catch (JSONException e) {
-							e.printStackTrace();
 						}
 					}
 
 					@Override
 					public void onFail(Exception e) {
-						e.printStackTrace();
 					}
 				}
 		);
 	}
 
+	// オブジェクト追加
 	public void addObject(String key, String value) {
 
 		try {
@@ -282,10 +281,10 @@ public class MainActivity extends AppCompatActivity {
 				}
 			});
 		} catch (JSONException e) {
-			e.printStackTrace();
 		}
 	}
 
+	// バケット内全てのデータ削除
 	public void allObjectDelete() {
 		kiiManager.allQueryObjectData(BUCKET_NAME, new KiiManager.OnFinishActionListener() {
 			@Override
@@ -314,7 +313,6 @@ public class MainActivity extends AppCompatActivity {
 						}
 					}
 				} catch (JSONException e) {
-					e.printStackTrace();
 				}
 			}
 
